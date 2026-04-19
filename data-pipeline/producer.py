@@ -1,78 +1,64 @@
-import json
 import time
+import json
 import random
 from kafka import KafkaProducer
 
-# The address of your Docker Kafka container
-KAFKA_BOOTSTRAP_SERVERS = 'localhost:9092'
-TOPIC_NAME = 'logistics_events'
+# The 3 "Demand Hubs" our AI focuses on
+HUBS = [
+    {"name": "Colaba", "lat": 18.92, "lon": 72.83},
+    {"name": "Bandra", "lat": 19.05, "lon": 72.82},
+    {"name": "Andheri", "lat": 19.11, "lon": 72.86}
+]
 
-def get_producer():
-    """Initializes the Kafka producer with optimized settings for streaming."""
-    try:
-        return KafkaProducer(
-            bootstrap_servers=KAFKA_BOOTSTRAP_SERVERS,
-            value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-            # Retries and batching for reliability
-            retries=5,
-            acks='all'
-        )
-    except Exception as e:
-        print(f"❌ Failed to connect to Kafka: {e}")
-        return None
+class Rider:
+    def __init__(self, id):
+        self.id = f"rider_{id}"
+        # Start riders at random spots in Mumbai
+        self.lat = random.uniform(18.90, 19.20)
+        self.lon = random.uniform(72.80, 72.95)
+        # Assign a random hub as their "Delivery Destination"
+        self.target = random.choice(HUBS)
 
-def generate_mumbai_event():
-    # Define 3 specific "Hubs" in Mumbai (Colaba, Bandra, Andheri)
-    hubs = [
-        (18.92, 72.83), # Colaba
-        (19.05, 72.82), # Bandra
-        (19.11, 72.86)  # Andheri
-    ]
+    def move(self):
+        # Calculate step size (very small for smooth movement)
+        step = 0.0005 
+        
+        # Move Latitude toward target
+        if self.lat < self.target["lat"]: self.lat += step
+        else: self.lat -= step
+            
+        # Move Longitude toward target
+        if self.lon < self.target["lon"]: self.lon += step
+        else: self.lon -= step
+
+        # If they reach the hub, give them a new random target
+        if abs(self.lat - self.target["lat"]) < 0.001:
+            self.target = random.choice(HUBS)
+
+    def to_dict(self):
+        return {
+            "rider_id": self.id,
+            "latitude": round(self.lat, 4),
+            "longitude": round(self.lon, 4),
+            "timestamp": time.time()
+        }
+
+# Initialize Kafka
+producer = KafkaProducer(
+    bootstrap_servers=['localhost:9092'],
+    value_serializer=lambda v: json.dumps(v).encode('utf-8')
+)
+
+# Create a fleet of 100 riders
+fleet = [Rider(i) for i in range(100)]
+
+print("🚀 Simulation Started: Riders are moving toward AI Hubs...")
+
+while True:
+    for rider in fleet:
+        rider.move()
+        producer.send('logistics_events', rider.to_dict())
     
-    # 70% of the time, pick a Hub and add a tiny bit of "noise" 
-    # This creates the "Duplicate/Stacking" effect you asked for
-    if random.random() < 0.7:
-        center_lat, center_lon = random.choice(hubs)
-        # Rounding to 3 decimal places forces riders into the same "Hexagon"
-        lat = round(center_lat + random.uniform(-0.01, 0.01), 3)
-        lon = round(center_lon + random.uniform(-0.01, 0.01), 3)
-    else:
-        # 30% of the time, stay completely random
-        lat = round(random.uniform(18.90, 19.30), 3)
-        lon = round(random.uniform(72.80, 72.95), 3)
-
-    return {
-        "timestamp": time.time(),
-        "rider_id": f"rider_{random.randint(1, 1000)}",
-        "latitude": lat,
-        "longitude": lon,
-        "demand_level": "normal"
-    }
-
-def run_producer():
-    producer = get_producer()
-    if not producer:
-        return
-
-    print(f"🚀 Producer Ignite: Streaming data to {TOPIC_NAME}...")
-    
-    try:
-        while True:
-            event_data = generate_mumbai_event()
-            
-            # Send data to Kafka
-            producer.send(TOPIC_NAME, event_data)
-            
-            # Print to terminal for debugging
-            print(f"📡 Event Sent: {event_data['rider_id']} at {event_data['latitude']:.4f}")
-            
-            # Speed: 5 pings per second (High throughput simulation)
-            time.sleep(0.2) 
-            
-    except KeyboardInterrupt:
-        print("\n🛑 Producer Stopped by User.")
-    finally:
-        producer.close()
-
-if __name__ == "__main__":
-    run_producer()
+    producer.flush()
+    # Slow down so we can see the movement on the map
+    time.sleep(0.5)
