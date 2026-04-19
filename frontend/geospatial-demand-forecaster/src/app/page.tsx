@@ -12,6 +12,7 @@ const MAP_STYLE = `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=
 
 export default function Home() {
   const [points, setPoints] = useState<number[][]>([]);
+  const [stats, setStats] = useState({ highDemandZones: 0, totalRiders: 0 });
   const [hoverInfo, setHoverInfo] = useState<any>(null);
   const [viewState, setViewState] = useState({
     longitude: 72.8777, // Mumbai
@@ -27,11 +28,18 @@ export default function Home() {
     
     socket.onopen = () => console.log("✅ Map connected to Backend WebSocket");
     socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setPoints(prev => [
-        ...prev, 
-        { coords: [data.longitude, data.latitude], isHigh: data.demand_level === "high" }
-      ].slice(-2000));
+  const data = JSON.parse(event.data);
+  setPoints(prev => {
+        const newPoints = [...prev, { coords: [data.longitude, data.latitude], isHigh: data.demand_level === "high" }].slice(-2000);
+        
+        // Update dashboard stats
+        setStats({
+          totalRiders: newPoints.length,
+          highDemandZones: newPoints.filter(p => p.isHigh).length
+        });
+        
+        return newPoints;
+      });
     };
     socket.onerror = (error) => console.error("❌ WebSocket Error:", error);
     
@@ -51,16 +59,21 @@ const layers = useMemo(() => {
       radius: 250,
       elevationScale: 20,
       extruded: true,
+      pickable: true,
+      autoHighlight: true,
       onHover: (info) => {
-        if (info.object) {
+        // Check if we have an object AND if it belongs to the heatmap layer
+        if (info.object && info.layer?.id === 'heatmap-layer') {
+          const riderCount = info.object.points?.length || 0;
+          
           setHoverInfo({
             x: info.x,
             y: info.y,
-            count: info.object.points.length,
-            // Calculate a "Status" based on the density
-            status: info.object.points.length > 15 ? "CRITICAL" : "STABLE"
+            count: riderCount,
+            status: riderCount > 15 ? "CRITICAL" : "STABLE"
           });
         } else {
+          // Hide tooltip if hovering over empty space or the red prediction glow
           setHoverInfo(null);
         }
       },
@@ -80,20 +93,29 @@ const layers = useMemo(() => {
   return (
     <main className="h-screen w-full relative bg-[#020617]">
       {/* The Floating UI Control Panel */}
-      <div className="absolute top-6 left-6 z-20 w-80 p-6 bg-slate-950/90 border border-slate-800 rounded-2xl backdrop-blur-xl shadow-2xl">
-        <h1 className="text-xl font-black text-white italic tracking-tight">GEO-DEMAND AI</h1>
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" />
-            <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">
-              Live Kafka Feed: {points.length} Events
-            </p>
-          </div>
-          <div className="p-2 bg-slate-900/50 rounded border border-slate-800">
-             <p className="text-[9px] text-slate-500 font-bold uppercase">Region: Greater Mumbai</p>
-          </div>
+      <div className="absolute top-6 left-6 z-20 w-80 p-6 bg-slate-950/85 border border-white/10 rounded-2xl backdrop-blur-md shadow-2xl">
+      <h1 className="text-xl font-black text-white italic tracking-tighter uppercase">Geo-Demand <span className="text-emerald-500">AI</span></h1>
+      
+      <div className="mt-6 space-y-4">
+        <div className="flex justify-between items-center">
+          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Active Fleet</span>
+          <span className="text-emerald-400 font-mono font-bold">{stats.totalRiders}</span>
+        </div>
+        
+        <div className="flex justify-between items-center">
+          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">AI Hotspots</span>
+          <span className="text-rose-500 font-mono font-bold">{stats.highDemandZones}</span>
+        </div>
+
+        {/* A simple progress bar showing "Strain" on the city */}
+        <div className="w-full bg-slate-800 h-1 rounded-full overflow-hidden">
+          <div 
+            className="bg-emerald-500 h-full transition-all duration-500" 
+            style={{ width: `${(stats.highDemandZones / 50) * 100}%` }}
+          />
         </div>
       </div>
+    </div>
 
       <DeckGL
         initialViewState={viewState}
