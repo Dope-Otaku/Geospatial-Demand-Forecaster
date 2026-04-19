@@ -46,6 +46,16 @@ Hovering over a 3D pillar provides a dynamic readout of:
 * **Rider Count:** The exact number of riders "binned" into that 200m hexagon.
 * **Coordinates:** Live Lat/Lon tracking of that specific zone.
 
+### **4. Visual Preview**
+
+**Dashboard Overview - Mission Control HUD**
+![Geo-Demand AI Dashboard](./frontend/geospatial-demand-forecaster/public/dashboard.png)
+*The main interface showing real-time metrics, active fleet count, system stability indicator, and the 3D map with hexagon demand pillars and AI centroid rings overlaid on Mumbai's geography.*
+
+**Zoomed Detail View - High-Density Zones**
+![Zoomed Dashboard Detail](./frontend/geospatial-demand-forecaster/public/zoom-d.png)
+*A detailed view of a critical demand zone with individual rider positions (white dots), transparent hexagon pillars showing density distribution, and AI-predicted centroid locations marked with neon green rings.*
+
 ---
 
 ## 🚀 Getting Started
