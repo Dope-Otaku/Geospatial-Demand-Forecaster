@@ -27,13 +27,19 @@ export default function Home() {
     
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      
       setPoints(prev => {
-        const newPoints = [...prev, { coords: [data.longitude, data.latitude], isHigh: data.demand_level === "high" }].slice(-2000);
+        const newPoint = { 
+          coords: [data.longitude, data.latitude],
+        };
+        
+        const newPoints = [...prev, newPoint].slice(-2000);
+        const mockHotspots = newPoints.length > 500 ? Math.floor(newPoints.length / 20) : 0;
+
         setStats({
           totalRiders: newPoints.length,
-          highDemandZones: newPoints.filter(p => p.isHigh).length
+          highDemandZones: mockHotspots // This will now show a number!
         });
+        
         return newPoints;
       });
 
