@@ -60,11 +60,14 @@ export default function Home() {
         autoHighlight: true,
         onHover: (info) => {
           if (info.object) {
-            const count = info.object.points?.length || 0;
+            // Deck.gl nests the raw data inside an array called 'points'
+            const actualRiderCount = info.object.points?.length || 0;
+            
             setHoverInfo({
-              x: info.x, y: info.y,
-              count: count,
-              status: count > 15 ? "CRITICAL" : "STABLE"
+              x: info.x,
+              y: info.y,
+              count: actualRiderCount, // Use the count of riders in this hex
+              status: actualRiderCount > 15 ? "CRITICAL" : "STABLE"
             });
           } else {
             setHoverInfo(null);
