@@ -12,6 +12,7 @@ const MAP_STYLE = `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=
 
 export default function Home() {
   const [points, setPoints] = useState<number[][]>([]);
+  const [hoverInfo, setHoverInfo] = useState<any>(null);
   const [viewState, setViewState] = useState({
     longitude: 72.8777, // Mumbai
     latitude: 19.0760,
@@ -50,6 +51,19 @@ const layers = useMemo(() => {
       radius: 250,
       elevationScale: 20,
       extruded: true,
+      onHover: (info) => {
+        if (info.object) {
+          setHoverInfo({
+            x: info.x,
+            y: info.y,
+            count: info.object.points.length,
+            // Calculate a "Status" based on the density
+            status: info.object.points.length > 15 ? "CRITICAL" : "STABLE"
+          });
+        } else {
+          setHoverInfo(null);
+        }
+      },
       colorRange: [[1, 152, 189], [73, 227, 206], [216, 254, 181], [254, 237, 177], [254, 173, 84], [209, 55, 78]]
     }),
     new ScatterplotLayer({
@@ -93,6 +107,24 @@ const layers = useMemo(() => {
       >
         <Map mapStyle={MAP_STYLE} />
       </DeckGL>
+      {/* Floating Tooltip */}
+      {hoverInfo && (
+        <div 
+          className="pointer-events-none absolute z-50 p-3 bg-slate-900/90 border border-white/20 rounded-lg backdrop-blur-md shadow-xl"
+          style={{ left: hoverInfo.x + 15, top: hoverInfo.y + 15 }}
+        >
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center gap-2">
+              <div className={`h-1.5 w-1.5 rounded-full ${hoverInfo.status === 'CRITICAL' ? 'bg-rose-500 animate-pulse' : 'bg-emerald-500'}`} />
+              <span className="text-[9px] font-black text-white uppercase tracking-tighter">Zone Status: {hoverInfo.status}</span>
+            </div>
+            <p className="text-xs text-slate-300 font-medium">
+              <span className="text-white font-bold">{hoverInfo.count}</span> Active Riders
+            </p>
+            <p className="text-[8px] text-slate-500 font-mono">LAT: {hoverInfo.y.toFixed(2)} | LON: {hoverInfo.x.toFixed(2)}</p>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
