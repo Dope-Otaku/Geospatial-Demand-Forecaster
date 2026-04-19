@@ -49,50 +49,63 @@ export default function Home() {
     if (!points || points.length === 0) return [];
 
     return [
-      new HexagonLayer({
-        id: 'heatmap-layer',
-        data: points,
-        getPosition: (d: any) => d.coords,
-        radius: 250,
-        elevationScale: 20,
-        extruded: true,
-        pickable: true,
-        autoHighlight: true,
-        onHover: (info) => {
-          if (info.object) {
-            // Deck.gl nests the raw data inside an array called 'points'
-            const actualRiderCount = info.object.points?.length || 0;
-            
-            setHoverInfo({
-              x: info.x,
-              y: info.y,
-              count: actualRiderCount, // Use the count of riders in this hex
-              status: actualRiderCount > 15 ? "CRITICAL" : "STABLE"
-            });
-          } else {
-            setHoverInfo(null);
-          }
-        },
-        colorRange: [[1, 152, 189], [73, 227, 206], [216, 254, 181], [254, 237, 177], [254, 173, 84], [209, 55, 78]]
-      }),
-      new ScatterplotLayer({
-        id: 'ai-centroids',
-        data: centroids.map((c, i) => ({ coords: [c[1], c[0]], id: i + 1 })),
-        getPosition: (d: any) => d.coords,
-        getFillColor: [0, 255, 150, 100],
-        getRadius: 1200,
-        pickable: true,
-        onHover: (info) => {
-          if (info.object) {
-            setHoverInfo({
-              x: info.x, y: info.y,
-              count: "AI CLUSTER CENTER",
-              status: `HUB #${info.object.id}`
-            });
-          }
+    // 1. BASE LAYER: Individual Riders (The "Pulse")
+    new ScatterplotLayer({
+      id: 'individual-riders',
+      data: points,
+      getPosition: (d: any) => d.coords,
+      getFillColor: [255, 255, 255, 200], // Brighter white
+      getRadius: 40, 
+      opacity: 0.8,
+    }),
+
+    // 2. MIDDLE LAYER: AI Hubs (Moving Rings)
+    // We move this BEFORE the hexagons so they sit on the ground
+    new ScatterplotLayer({
+      id: 'ai-centroids',
+      data: centroids.map((c, i) => ({ coords: [c[1], c[0]], id: i + 1 })),
+      getPosition: (d: any) => d.coords,
+      getFillColor: [0, 255, 150, 80],
+      getRadius: 1500, // Made it bigger to act as a "Zone"
+      pickable: true,
+      onHover: (info) => {
+        if (info.object) {
+          setHoverInfo({
+            x: info.x, y: info.y,
+            count: "AI CLUSTER CENTER",
+            status: `HUB #${info.object.id}`
+          });
         }
-      })
-    ];
+      }
+    }),
+
+    // 3. TOP LAYER: Transparent Heatmap Pillars
+    new HexagonLayer({
+      id: 'heatmap-layer',
+      data: points,
+      getPosition: (d: any) => d.coords,
+      radius: 200,
+      elevationScale: 15,
+      extruded: true,
+      pickable: true,
+      autoHighlight: true,
+      opacity: 0.3, // Very transparent so you see through to the dots and rings
+      coverage: 0.7, // Slimmer pillars so they don't look like a solid wall
+      onHover: (info) => {
+        if (info.object) {
+          const actualRiderCount = info.object.points?.length || 0;
+          setHoverInfo({
+            x: info.x, y: info.y,
+            count: actualRiderCount,
+            status: actualRiderCount > 15 ? "CRITICAL" : "STABLE"
+          });
+        } else {
+          setHoverInfo(null);
+        }
+      },
+      colorRange: [[1, 152, 189], [73, 227, 206], [216, 254, 181], [254, 237, 177], [254, 173, 84], [209, 55, 78]]
+    })
+  ];
     // Added centroids to dependencies so the rings actually update!
   }, [points, centroids]);
 
