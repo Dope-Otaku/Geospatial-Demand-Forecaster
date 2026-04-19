@@ -5,6 +5,8 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from aiokafka import AIOKafkaConsumer
 from fastapi.middleware.cors import CORSMiddleware
 from collections import Counter
+import numpy as np
+from sklearn.cluster import KMeans
 
 app = FastAPI()
 
@@ -19,27 +21,38 @@ app.add_middleware(
 KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
 KAFKA_TOPIC = "logistics_events"
 
-# A simple "Inference Engine" to track demand spikes
+# A Predictable "Cluster Calculation Engine" to track demand spikes
 class DemandPredictor:
     def __init__(self):
         self.history = []
 
-    def predict_hotzone(self, lat, lon):
-        # Round coordinates to create "buckets" (approx 500m blocks)
-        lat_bin = round(lat, 3)
-        lon_bin = round(lon, 3)
-        self.history.append((lat_bin, lon_bin, datetime.now()))
+    def get_ai_clusters(self):
+        """
+        Calculates the 3 main 'Epicenters' of demand using K-Means.
+        """
+        # 1. Prepare data (extract only lat/lon)
+        if len(self.history) < 20: # Wait for enough data
+            return []
+            
+        coords = np.array([[h[0], h[1]] for h in self.history])
         
-        # Keep only last 2 minutes of history
-        cutoff = datetime.now() - timedelta(minutes=2)
+        # 2. Run K-Means Clustering
+        # We look for 3 clusters representing North, Central, and South hubs
+        kmeans = KMeans(n_clusters=3, n_init='auto', random_state=42)
+        kmeans.fit(coords)
+        
+        # 3. Return the centroids
+        return kmeans.cluster_centers_.tolist()
+
+    def add_data(self, lat, lon):
+        self.history.append((lat, lon, datetime.now()))
+        # Keep only the last 5 minutes of data for the 'Rolling' AI model
+        cutoff = datetime.now() - timedelta(minutes=5)
         self.history = [h for h in self.history if h[2] > cutoff]
         
-        # Count occurrences in this bin
-        counts = Counter([(h[0], h[1]) for h in self.history])
-        current_density = counts[(lat_bin, lon_bin)]
-        
-        # AI Logic: If density > 10 in 2 mins, mark as a "High Demand" cluster
-        return "high" if current_density > 10 else "normal"
+        # Keep history manageable
+        if len(self.history) > 500:
+            self.history = self.history[-500:]
 
 predictor = DemandPredictor()
 
@@ -61,13 +74,20 @@ async def websocket_endpoint(websocket: WebSocket):
     
     await consumer.start()
     try:
+        count = 0
         async for msg in consumer:
             data = msg.value
-            # Inject our "AI" prediction
-            data["demand_level"] = predictor.predict_hotzone(data["latitude"], data["longitude"])
+            predictor.add_data(data["latitude"], data["longitude"])
+            
+            # Every 10 pings, calculate the K-Means Centroids
+            count += 1
+            if count % 10 == 0:
+                centroids = predictor.get_ai_clusters()
+                data["centroids"] = centroids # Send the AI centers to the map
+            
             await websocket.send_json(data)
-    except WebSocketDisconnect:
-        print("Frontend failed to sync!")
+    except Exception as e:
+        print(f"Error in WebSocket: {e}")
     finally:
         await consumer.stop()
 
