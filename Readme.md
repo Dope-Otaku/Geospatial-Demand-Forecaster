@@ -54,6 +54,7 @@ Hovering over a 3D pillar provides a dynamic readout of:
 ```bash
 # Start Kafka and Zookeeper (KRaft Mode)
 docker-compose up -d
+```
 
 ### 2. Backend & ML
 ```bash
@@ -61,21 +62,23 @@ docker-compose up -d
 cd backend
 pip install -r requirements.txt
 python main.py
+```
 
 ### 3. Simulator (Data wise)
 ```bash
 # start your real time random data simulator 
 cd data-pipeline
 python producer.py
-
+```
 
 ### 4. Frontend
 ```bash
 # start your real time dashboard
+cd frotend
 npm run dev
+```
 
-
-# Geo-Demand AI: Final Overview
+## Geo-Demand AI: Final Overview
 
 Open [http://localhost:3000](http://localhost:3000) to view the live simulation.
 
@@ -89,4 +92,4 @@ Open [http://localhost:3000](http://localhost:3000) to view the live simulation.
 
 ---
 
-**Created by @CodedInPajamas** | *Senior Data Analyst & Full-Stack Developer Portfolio Project*
+**Created by @CodedInPajamas** | *Senior Data Analyst & Full-Stack Developer | Side Project*
