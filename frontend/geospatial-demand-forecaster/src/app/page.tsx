@@ -35,21 +35,33 @@ export default function Home() {
   }, []);
 
   // Performance Optimization: Only re-render the layer when points change
-  const layers = useMemo(() => [
+const layers = useMemo(() => {
+  // Safety Check: If no points, it doesn't render
+  if (!points || points.length === 0) return [];
+
+  return [
     new HexagonLayer({
       id: 'heatmap-layer',
       data: points,
-      getPosition: (d: any) => d,
-      radius: 250,        // Hexagon width (meters)
-      elevationScale: 15, // Multiplier for 3D height
-      extruded: true,     // Enables 3D
+      // do Data Sanitization: Ensure d is a valid array before accessing indices
+      getPosition: (d: any) => {
+        if (!d || d.length < 2) return [0, 0];
+        return d;
+      },
+      radius: 250,
+      elevationScale: 20, 
+      extruded: true,
       pickable: true,
+      updateTriggers: {
+        getPosition: [points.length]
+      },
       colorRange: [
         [1, 152, 189], [73, 227, 206], [216, 254, 181],
         [254, 237, 177], [254, 173, 84], [209, 55, 78]
       ]
     })
-  ], [points]);
+  ];
+}, [points]);
 
   return (
     <main className="h-screen w-full relative bg-[#020617]">
@@ -74,6 +86,10 @@ export default function Home() {
         onViewStateChange={e => setViewState(e.viewState as any)}
         controller={true}
         layers={layers}
+        parameters={{
+          depthTest: true,
+          blend: true,
+        }}
       >
         <Map mapStyle={MAP_STYLE} />
       </DeckGL>
