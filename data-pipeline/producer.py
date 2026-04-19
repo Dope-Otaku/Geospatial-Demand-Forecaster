@@ -22,18 +22,31 @@ def get_producer():
         return None
 
 def generate_mumbai_event():
-    """Generates a realistic delivery rider ping within Mumbai bounds."""
-    # Approximate Mumbai Coordinates
-    lat_min, lat_max = 18.90, 19.30
-    lon_min, lon_max = 72.80, 72.95
+    # Define 3 specific "Hubs" in Mumbai (Colaba, Bandra, Andheri)
+    hubs = [
+        (18.92, 72.83), # Colaba
+        (19.05, 72.82), # Bandra
+        (19.11, 72.86)  # Andheri
+    ]
     
+    # 70% of the time, pick a Hub and add a tiny bit of "noise" 
+    # This creates the "Duplicate/Stacking" effect you asked for
+    if random.random() < 0.7:
+        center_lat, center_lon = random.choice(hubs)
+        # Rounding to 3 decimal places forces riders into the same "Hexagon"
+        lat = round(center_lat + random.uniform(-0.01, 0.01), 3)
+        lon = round(center_lon + random.uniform(-0.01, 0.01), 3)
+    else:
+        # 30% of the time, stay completely random
+        lat = round(random.uniform(18.90, 19.30), 3)
+        lon = round(random.uniform(72.80, 72.95), 3)
+
     return {
         "timestamp": time.time(),
         "rider_id": f"rider_{random.randint(1, 1000)}",
-        "latitude": random.uniform(lat_min, lat_max),
-        "longitude": random.uniform(lon_min, lon_max),
-        "order_value": round(random.uniform(100, 2500), 2),
-        "status": random.choice(["active", "delivering", "idle"])
+        "latitude": lat,
+        "longitude": lon,
+        "demand_level": "normal"
     }
 
 def run_producer():
