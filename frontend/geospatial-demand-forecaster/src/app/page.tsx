@@ -1,6 +1,7 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import DeckGL from '@deck.gl/react';
+import { HexagonLayer } from '@deck.gl/aggregation-layers';
 import { Map } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -33,36 +34,46 @@ export default function Home() {
     return () => socket.close();
   }, []);
 
+  // Performance Optimization: Only re-render the layer when points change
+  const layers = useMemo(() => [
+    new HexagonLayer({
+      id: 'heatmap-layer',
+      data: points,
+      getPosition: (d: any) => d,
+      radius: 250,        // Hexagon width (meters)
+      elevationScale: 15, // Multiplier for 3D height
+      extruded: true,     // Enables 3D
+      pickable: true,
+      colorRange: [
+        [1, 152, 189], [73, 227, 206], [216, 254, 181],
+        [254, 237, 177], [254, 173, 84], [209, 55, 78]
+      ]
+    })
+  ], [points]);
+
   return (
     <main className="h-screen w-full relative bg-[#020617]">
-      {/* UI Overlay */}
+      {/* The Floating UI Control Panel */}
       <div className="absolute top-6 left-6 z-20 w-80 p-6 bg-slate-950/90 border border-slate-800 rounded-2xl backdrop-blur-xl shadow-2xl">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-black text-white tracking-tighter italic">GEO-DEMAND</h1>
-          <span className="px-2 py-1 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded border border-emerald-500/20">OPEN-SOURCE</span>
-        </div>
-        
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-            <p className="text-xs text-slate-400 font-mono tracking-widest uppercase">Stream: Active</p>
+        <h1 className="text-xl font-black text-white italic tracking-tight">GEO-DEMAND AI</h1>
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_10px_#10b981]" />
+            <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">
+              Live Kafka Feed: {points.length} Events
+            </p>
           </div>
-          
-          <div className="p-3 bg-slate-900/50 rounded-lg border border-slate-800">
-            <p className="text-[10px] text-slate-500 uppercase font-bold mb-1">Inference Engine (MapLibre)</p>
-            <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden">
-              <div className="h-full w-full bg-gradient-to-r from-emerald-500 to-teal-500" />
-            </div>
+          <div className="p-2 bg-slate-900/50 rounded border border-slate-800">
+             <p className="text-[9px] text-slate-500 font-bold uppercase">Region: Greater Mumbai</p>
           </div>
         </div>
       </div>
 
-      {/* Geospatial Engine */}
       <DeckGL
         initialViewState={viewState}
-        onViewStateChange={e => setViewState(e.viewState)}
+        onViewStateChange={e => setViewState(e.viewState as any)}
         controller={true}
-        layers={[]} 
+        layers={layers}
       >
         <Map mapStyle={MAP_STYLE} />
       </DeckGL>
