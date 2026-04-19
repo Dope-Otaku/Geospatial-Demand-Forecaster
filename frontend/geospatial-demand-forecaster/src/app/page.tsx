@@ -9,6 +9,7 @@ const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY;
 const MAP_STYLE = `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=${MAPTILER_KEY}`;
 
 export default function Home() {
+  const [points, setPoints] = useState<number[][]>([]);
   const [viewState, setViewState] = useState({
     longitude: 72.8777, // Mumbai
     latitude: 19.0760,
@@ -22,7 +23,11 @@ export default function Home() {
     const socket = new WebSocket('ws://localhost:8000/ws/stream');
     
     socket.onopen = () => console.log("✅ Map connected to Backend WebSocket");
-    socket.onmessage = (event) => console.log("📍 New Rider Data:", JSON.parse(event.data));
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      // Append [lon, lat] and keep only the last 2000 points for performance
+      setPoints(prev => [...prev, [data.longitude, data.latitude]].slice(-2000));
+    };
     socket.onerror = (error) => console.error("❌ WebSocket Error:", error);
     
     return () => socket.close();
