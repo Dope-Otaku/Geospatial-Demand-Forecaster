@@ -12,6 +12,7 @@ const MAP_STYLE = `https://api.maptiler.com/maps/streets-v2-dark/style.json?key=
 
 export default function Home() {
   const [points, setPoints] = useState<number[][]>([]);
+  const [centroids, setCentroids] = useState<number[][]>([]);
   const [stats, setStats] = useState({ highDemandZones: 0, totalRiders: 0 });
   const [hoverInfo, setHoverInfo] = useState<any>(null);
   const [viewState, setViewState] = useState({
@@ -28,18 +29,21 @@ export default function Home() {
     
     socket.onopen = () => console.log("✅ Map connected to Backend WebSocket");
     socket.onmessage = (event) => {
-  const data = JSON.parse(event.data);
-  setPoints(prev => {
-        const newPoints = [...prev, { coords: [data.longitude, data.latitude], isHigh: data.demand_level === "high" }].slice(-2000);
-        
-        // Update dashboard stats
-        setStats({
-          totalRiders: newPoints.length,
-          highDemandZones: newPoints.filter(p => p.isHigh).length
-        });
-        
-        return newPoints;
-      });
+      const data = JSON.parse(event.data);
+      setPoints(prev => {
+            const newPoints = [...prev, { coords: [data.longitude, data.latitude], isHigh: data.demand_level === "high" }].slice(-2000);
+            
+            // Update dashboard stats
+            setStats({
+              totalRiders: newPoints.length,
+              highDemandZones: newPoints.filter(p => p.isHigh).length
+            });
+            
+            return newPoints;
+          });
+      if (data.centroids) {
+        setCentroids(data.centroids); // Update the AI Epicenters
+      }
     };
     socket.onerror = (error) => console.error("❌ WebSocket Error:", error);
     
@@ -80,12 +84,14 @@ const layers = useMemo(() => {
       colorRange: [[1, 152, 189], [73, 227, 206], [216, 254, 181], [254, 237, 177], [254, 173, 84], [209, 55, 78]]
     }),
     new ScatterplotLayer({
-        id: 'prediction-layer',
-        data: points.filter((p: any) => p.isHigh),
-        getPosition: (d: any) => d.coords,
-        getFillColor: [255, 0, 0, 150], // Red Glow
-        getRadius: 300,
-        updateTriggers: { getPosition: [points.length] }
+      id: 'ai-centroids',
+      data: centroids,
+      getPosition: d => [d[1], d[0]], // [lon, lat]
+      getFillColor: [0, 255, 150, 200], // Neon Green Glow
+      getRadius: 800, // Large radius to show "Influence Area"
+      stroked: true,
+      lineWidthMinPixels: 2,
+      getLineColor: [255, 255, 255]
     })
   ];
 }, [points]);
