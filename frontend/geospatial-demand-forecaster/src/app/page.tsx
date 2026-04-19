@@ -29,7 +29,7 @@ export default function Home() {
       const data = JSON.parse(event.data);
       setPoints(prev => {
         const newPoint = { 
-          coords: [data.longitude, data.latitude],
+          coords: [Number(data.longitude), Number(data.latitude)],
         };
         
         const newPoints = [...prev, newPoint].slice(-2000);
@@ -77,10 +77,13 @@ export default function Home() {
       onHover: (info) => {
         if (info.object) {
           setHoverInfo({
-            x: info.x, y: info.y,
-            count: "AI CLUSTER CENTER",
-            status: `HUB #${info.object.id}`
+            x: info.x,
+            y: info.y,
+            count: "AI PREDICTION", 
+            status: `CENTROID HUB #${info.object.id}`
           });
+        } else {
+          setHoverInfo(null);
         }
       }
     }),
@@ -95,19 +98,33 @@ export default function Home() {
       extruded: true,
       pickable: true,
       autoHighlight: true,
+      material: {
+        ambient: 0.64,
+        diffuse: 0.6,
+        shininess: 32,
+        specularColor: [51, 51, 51]
+      },
       opacity: 0.3, // Very transparent so you see through to the dots and rings
       coverage: 0.7, // Slimmer pillars so they don't look like a solid wall
+      // onClick: (info) => console.log("Clicked:", info.object),
       onHover: (info) => {
+        // Check if we actually hit an object
         if (info.object) {
-          const actualRiderCount = info.object.points?.length || 0;
-          setHoverInfo({
-            x: info.x, y: info.y,
-            count: actualRiderCount,
-            status: actualRiderCount > 15 ? "CRITICAL" : "STABLE"
-          });
-        } else {
-          setHoverInfo(null);
+          // Deck.gl HexagonLayer sometimes uses .points, sometimes .items
+          const count = info.object.points?.length || info.object.count || 0;
+          
+          if (count > 0) {
+            console.log("Riders found in hex:", count);
+            setHoverInfo({
+              x: info.x,
+              y: info.y,
+              count: count,
+              status: count > 10 ? "HIGH DEMAND" : "STABLE"
+            });
+            return; // Exit early so we don't hit the 'null' setter
+          }
         }
+        setHoverInfo(null);
       },
       colorRange: [[1, 152, 189], [73, 227, 206], [216, 254, 181], [254, 237, 177], [254, 173, 84], [209, 55, 78]]
     })
@@ -155,7 +172,14 @@ export default function Home() {
         onViewStateChange={e => setViewState(e.viewState as any)}
         controller={true}
         layers={layers}
-        parameters={{ depthTest: true, blend: true }}
+        pickingRadius={5}
+        // This ensures DeckGL captures the mouse before the map does
+        useDevicePixels={true}
+        style={{ zIndex: 1 }} 
+        parameters={{ 
+          depthTest: true, 
+          blend: true,
+        }}
       >
         <Map mapStyle={MAP_STYLE} />
       </DeckGL>
