@@ -17,6 +17,17 @@ export default function Home() {
     bearing: 0
   });
 
+  // WebSocket connection to receive real-time rider data from the backend
+  React.useEffect(() => {
+    const socket = new WebSocket('ws://localhost:8000/ws/stream');
+    
+    socket.onopen = () => console.log("✅ Map connected to Backend WebSocket");
+    socket.onmessage = (event) => console.log("📍 New Rider Data:", JSON.parse(event.data));
+    socket.onerror = (error) => console.error("❌ WebSocket Error:", error);
+    
+    return () => socket.close();
+  }, []);
+
   return (
     <main className="h-screen w-full relative bg-[#020617]">
       {/* UI Overlay */}
