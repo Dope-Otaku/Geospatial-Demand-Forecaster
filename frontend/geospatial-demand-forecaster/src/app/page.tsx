@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect, useMemo } from 'react';
 import DeckGL from '@deck.gl/react';
+import { ScatterplotLayer } from '@deck.gl/layers';
 import { HexagonLayer } from '@deck.gl/aggregation-layers';
 import { Map } from 'react-map-gl/maplibre';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -26,8 +27,10 @@ export default function Home() {
     socket.onopen = () => console.log("✅ Map connected to Backend WebSocket");
     socket.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      // Append [lon, lat] and keep only the last 2000 points for performance
-      setPoints(prev => [...prev, [data.longitude, data.latitude]].slice(-2000));
+      setPoints(prev => [
+        ...prev, 
+        { coords: [data.longitude, data.latitude], isHigh: data.demand_level === "high" }
+      ].slice(-2000));
     };
     socket.onerror = (error) => console.error("❌ WebSocket Error:", error);
     
@@ -43,22 +46,19 @@ const layers = useMemo(() => {
     new HexagonLayer({
       id: 'heatmap-layer',
       data: points,
-      // do Data Sanitization: Ensure d is a valid array before accessing indices
-      getPosition: (d: any) => {
-        if (!d || d.length < 2) return [0, 0];
-        return d;
-      },
+      getPosition: (d: any) => d.coords, // Changed to handle object
       radius: 250,
-      elevationScale: 20, 
+      elevationScale: 20,
       extruded: true,
-      pickable: true,
-      updateTriggers: {
-        getPosition: [points.length]
-      },
-      colorRange: [
-        [1, 152, 189], [73, 227, 206], [216, 254, 181],
-        [254, 237, 177], [254, 173, 84], [209, 55, 78]
-      ]
+      colorRange: [[1, 152, 189], [73, 227, 206], [216, 254, 181], [254, 237, 177], [254, 173, 84], [209, 55, 78]]
+    }),
+    new ScatterplotLayer({
+        id: 'prediction-layer',
+        data: points.filter((p: any) => p.isHigh),
+        getPosition: (d: any) => d.coords,
+        getFillColor: [255, 0, 0, 150], // Red Glow
+        getRadius: 300,
+        updateTriggers: { getPosition: [points.length] }
     })
   ];
 }, [points]);
