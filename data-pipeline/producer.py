@@ -3,7 +3,7 @@ import json
 import random
 from kafka import KafkaProducer
 
-# The 3 "Demand Hubs" our AI focuses on
+# The 3 "Demand Hubs" our AI focuses on [random house]
 HUBS = [
     {"name": "Colaba", "lat": 18.92, "lon": 72.83},
     {"name": "Bandra", "lat": 19.05, "lon": 72.82},
